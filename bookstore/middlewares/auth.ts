@@ -14,11 +14,17 @@ export function authMiddleware(req: NextRequest) {
     const token = authHeader.split(' ')[1]
 
     try {
-        const decoded = verifyToken(token) as any
+        const decoded = verifyToken(token) as {
+            id: string
+            role: string
+            email: string
+        }
 
-        // Gắn userId vào headers để controller dùng
+        // Gắn user info vào headers
         const requestHeaders = new Headers(req.headers)
-        requestHeaders.set('userId', decoded.id)
+        requestHeaders.set('x-user-id', decoded.id)
+        requestHeaders.set('x-user-role', decoded.role)
+
 
         return NextResponse.next({
             request: {

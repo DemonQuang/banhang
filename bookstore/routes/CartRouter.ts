@@ -1,37 +1,50 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/config/database'
 import { cartService } from '@/services/CartService'
+import { authMiddleware } from '@/middlewares/auth'
 
-export async function GET(req: Request) {
-    await connectDB()
+export async function GET(req: NextRequest) {
+    const auth = authMiddleware(req)
+    if (auth) return auth
 
-    const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId')
+    try {
+        await connectDB()
 
-    if (!userId) {
+        const userId = (req as any).user.id
+        const cart = await cartService.getByUser(userId)
+
+        return NextResponse.json(cart)
+    } catch (error: any) {
         return NextResponse.json(
-            { message: 'Missing userId' },
-            { status: 400 }
+            { message: error.message },
+            { status: 500 }
         )
     }
-
-    const cart = await cartService.getByUser(userId)
-    return NextResponse.json(cart)
 }
 
+export async function PUT(req: NextRequest) {
+    const auth = authMiddleware(req)
+    if (auth) return auth
 
-export async function POST(req: Request) {
-    await connectDB()
+    try {
+        await connectDB()
 
-    const data = await req.json()
+        const userId = (req as any).user.id
+        const { items } = await req.json()
 
-    if (!data.userId) {
+        if (!Array.isArray(items)) {
+            return NextResponse.json(
+                { message: 'Invalid items' },
+                { status: 400 }
+            )
+        }
+
+        const cart = await cartService.update(userId, items)
+        return NextResponse.json(cart)
+    } catch (error: any) {
         return NextResponse.json(
-            { message: 'Missing userId' },
-            { status: 400 }
+            { message: error.message },
+            { status: 500 }
         )
     }
-
-    const cart = await cartService.create(data.userId)
-    return NextResponse.json(cart)
 }
